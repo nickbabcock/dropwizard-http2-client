@@ -2,8 +2,10 @@ package com.github.arteam.dropwizard.http2.client;
 
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.guava.deser.ImmutableSetDeserializer;
 import com.github.arteam.dropwizard.http2.client.transport.Http2ClearClientTransportFactory;
 import com.github.arteam.dropwizard.http2.client.transport.Http2ClientTransportFactory;
+import com.google.common.collect.ImmutableSet;
 import io.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import io.dropwizard.logging.BootstrapLogging;
 import io.dropwizard.setup.Environment;
@@ -12,6 +14,7 @@ import io.dropwizard.testing.FixtureHelpers;
 import io.dropwizard.testing.ResourceHelpers;
 import io.dropwizard.testing.junit.DropwizardAppRule;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.junit.*;
 import org.mockito.Mockito;
@@ -96,5 +99,23 @@ public class Http2ClientIntegrationTest {
                 .getContentAsString();
         assertThat(objectMapper.readTree(response))
                 .isEqualTo(objectMapper.readTree(FixtureHelpers.fixture("server_response.json")));
+    }
+
+    @Test
+    public void testH2Instrumentation() throws Exception {
+        Http2ClientConfiguration h2conf = new Http2ClientConfiguration();
+        Http2ClientTransportFactory h2transport = new Http2ClientTransportFactory();
+        h2transport.setTrustStorePath(ResourceHelpers.resourceFilePath("stores/h2_client.jts"));
+        h2transport.setTrustStorePassword("h2_client");
+        h2transport.setValidatePeers(false);
+        h2conf.setConnectionFactoryBuilder(h2transport);
+
+        HttpClient client = new Http2ClientBuilder(environment)
+                .using(h2conf)
+                .build();
+        client.GET(String.format("https://127.0.0.1:%d/application/greet-chunk", h2.getLocalPort())).getContentAsString();
+
+//        assertThat(objectMapper.readTree(response))
+//                .isEqualTo(objectMapper.readTree(FixtureHelpers.fixture("server_response.json")));
     }
 }
